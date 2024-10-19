@@ -2,6 +2,7 @@ import os
 import sys
 from datetime import datetime
 from time import sleep
+import json
 
 import pandas as pd
 from fake_headers import Headers
@@ -369,6 +370,13 @@ It may be due to the following:
             return
         pass
 
+    def load_hashtags(self):
+        hashtags_file = os.path.join(os.path.dirname(__file__), '..', '..', 'hashtags.json')
+        if os.path.exists(hashtags_file):
+            with open(hashtags_file, 'r') as f:
+                return json.load(f)
+        return []
+
     def scrape_tweets(
         self,
         max_tweets=50,
@@ -381,165 +389,155 @@ It may be due to the following:
         scrape_poster_details=False,
         router=None,
     ):
-        self._config_scraper(
-            max_tweets,
-            scrape_username,
-            scrape_hashtag,
-            scrape_query,
-            scrape_latest,
-            scrape_top,
-            scrape_poster_details,
-        )
+        hashtags = self.load_hashtags()
+        if not hashtags:
+            print("No hashtags found in hashtags.json. Skipping Twitter scraper run.")
+            return
 
-        if router is None:
-            router = self.router
-
-        router()
-
-        if self.scraper_details["type"] == "Username":
-            print(
-                "Scraping Tweets from @{}...".format(self.scraper_details["username"])
+        for hashtag in hashtags:
+            print(f"Scraping tweets for hashtag: {hashtag}")
+            self._config_scraper(
+                max_tweets=max_tweets,
+                scrape_hashtag=hashtag,
+                scrape_latest=scrape_latest,
+                scrape_top=scrape_top,
+                scrape_poster_details=scrape_poster_details,
             )
-        elif self.scraper_details["type"] == "Hashtag":
-            print(
-                "Scraping {} Tweets from #{}...".format(
-                    self.scraper_details["tab"], self.scraper_details["hashtag"]
-                )
-            )
-        elif self.scraper_details["type"] == "Query":
-            print(
-                "Scraping {} Tweets from {} search...".format(
-                    self.scraper_details["tab"], self.scraper_details["query"]
-                )
-            )
-        elif self.scraper_details["type"] == "Home":
-            print("Scraping Tweets from Home...")
+            self.router()
 
-        # Accept cookies to make the banner disappear
-        try:
-            accept_cookies_btn = self.driver.find_element(
-                "xpath", "//span[text()='Refuse non-essential cookies']/../../.."
-            )
-            accept_cookies_btn.click()
-        except NoSuchElementException:
-            pass
-
-        self.progress.print_progress(0, False, 0, no_tweets_limit)
-
-        refresh_count = 0
-        added_tweets = 0
-        empty_count = 0
-        retry_cnt = 0
-
-        while self.scroller.scrolling:
+            # Accept cookies to make the banner disappear
             try:
-                self.get_tweet_cards()
-                added_tweets = 0
+                accept_cookies_btn = self.driver.find_element(
+                    "xpath", "//span[text()='Refuse non-essential cookies']/../../.."
+                )
+                accept_cookies_btn.click()
+            except NoSuchElementException:
+                pass
 
-                for card in self.tweet_cards[-15:]:
-                    try:
-                        tweet_id = str(card)
+            self.progress.print_progress(0, False, 0, no_tweets_limit)
 
-                        if tweet_id not in self.tweet_ids:
-                            self.tweet_ids.add(tweet_id)
+            refresh_count = 0
+            added_tweets = 0
+            empty_count = 0
+            retry_cnt = 0
 
-                            if not self.scraper_details["poster_details"]:
-                                self.driver.execute_script(
-                                    "arguments[0].scrollIntoView();", card
+            while self.scroller.scrolling:
+                try:
+                    self.get_tweet_cards()
+                    added_tweets = 0
+
+                    for card in self.tweet_cards[-15:]:
+                        try:
+                            tweet_id = str(card)
+
+                            if tweet_id not in self.tweet_ids:
+                                self.tweet_ids.add(tweet_id)
+
+                                if not self.scraper_details["poster_details"]:
+                                    self.driver.execute_script(
+                                        "arguments[0].scrollIntoView();", card
+                                    )
+
+                                tweet = Tweet(
+                                    card=card,
+                                    driver=self.driver,
+                                    actions=self.actions,
+                                    scrape_poster_details=self.scraper_details[
+                                        "poster_details"
+                                    ],
                                 )
 
-                            tweet = Tweet(
-                                card=card,
-                                driver=self.driver,
-                                actions=self.actions,
-                                scrape_poster_details=self.scraper_details[
-                                    "poster_details"
-                                ],
-                            )
+                                if tweet:
+                                    if not tweet.error and tweet.tweet is not None:
+                                        if not tweet.is_ad:
+                                            self.data.append(tweet.tweet)
+                                            added_tweets += 1
+                                            self.progress.print_progress(
+                                                len(self.data), False, 0, no_tweets_limit
+                                            )
 
-                            if tweet:
-                                if not tweet.error and tweet.tweet is not None:
-                                    if not tweet.is_ad:
-                                        self.data.append(tweet.tweet)
-                                        added_tweets += 1
-                                        self.progress.print_progress(
-                                            len(self.data), False, 0, no_tweets_limit
-                                        )
-
-                                        if (
-                                            len(self.data) >= self.max_tweets
-                                            and not no_tweets_limit
-                                        ):
-                                            self.scroller.scrolling = False
-                                            break
+                                            if (
+                                                len(self.data) >= self.max_tweets
+                                                and not no_tweets_limit
+                                            ):
+                                                self.scroller.scrolling = False
+                                                break
+                                        else:
+                                            continue
                                     else:
                                         continue
                                 else:
                                     continue
                             else:
                                 continue
-                        else:
+                        except NoSuchElementException:
                             continue
-                    except NoSuchElementException:
-                        continue
 
-                if len(self.data) >= self.max_tweets and not no_tweets_limit:
+                    if len(self.data) >= self.max_tweets and not no_tweets_limit:
+                        break
+
+                    if added_tweets == 0:
+                        # Check if there is a button "Retry" and click on it with a regular basis until a certain amount of tries
+                        try:
+                            while retry_cnt < 15:
+                                retry_button = self.driver.find_element(
+                                    "xpath", "//span[text()='Retry']/../../.."
+                                )
+                                self.progress.print_progress(
+                                    len(self.data), True, retry_cnt, no_tweets_limit
+                                )
+                                sleep(58)
+                                retry_button.click()
+                                retry_cnt += 1
+                                sleep(2)
+                        # There is no Retry button so the counter is reseted
+                        except NoSuchElementException:
+                            retry_cnt = 0
+                            self.progress.print_progress(
+                                len(self.data), False, 0, no_tweets_limit
+                            )
+
+                        if empty_count >= 5:
+                            if refresh_count >= 3:
+                                print()
+                                print("No more tweets to scrape")
+                                break
+                            refresh_count += 1
+                        empty_count += 1
+                        sleep(1)
+                    else:
+                        empty_count = 0
+                        refresh_count = 0
+                except StaleElementReferenceException:
+                    sleep(2)
+                    continue
+                except KeyboardInterrupt:
+                    print("\n")
+                    print("Keyboard Interrupt")
+                    self.interrupted = True
+                    break
+                except Exception as e:
+                    print("\n")
+                    print(f"Error scraping tweets: {e}")
                     break
 
-                if added_tweets == 0:
-                    # Check if there is a button "Retry" and click on it with a regular basis until a certain amount of tries
-                    try:
-                        while retry_cnt < 15:
-                            retry_button = self.driver.find_element(
-                                "xpath", "//span[text()='Retry']/../../.."
-                            )
-                            self.progress.print_progress(
-                                len(self.data), True, retry_cnt, no_tweets_limit
-                            )
-                            sleep(58)
-                            retry_button.click()
-                            retry_cnt += 1
-                            sleep(2)
-                    # There is no Retry button so the counter is reseted
-                    except NoSuchElementException:
-                        retry_cnt = 0
-                        self.progress.print_progress(
-                            len(self.data), False, 0, no_tweets_limit
-                        )
+            print("")
 
-                    if empty_count >= 5:
-                        if refresh_count >= 3:
-                            print()
-                            print("No more tweets to scrape")
-                            break
-                        refresh_count += 1
-                    empty_count += 1
-                    sleep(1)
-                else:
-                    empty_count = 0
-                    refresh_count = 0
-            except StaleElementReferenceException:
-                sleep(2)
-                continue
-            except KeyboardInterrupt:
-                print("\n")
-                print("Keyboard Interrupt")
-                self.interrupted = True
-                break
-            except Exception as e:
-                print("\n")
-                print(f"Error scraping tweets: {e}")
-                break
+            if len(self.data) >= self.max_tweets or no_tweets_limit:
+                print("Scraping Complete")
+            else:
+                print("Scraping Incomplete")
 
-        print("")
+            if not no_tweets_limit:
+                print("Tweets: {} out of {}\n".format(len(self.data), self.max_tweets))
 
-        if len(self.data) >= self.max_tweets or no_tweets_limit:
-            print("Scraping Complete")
-        else:
-            print("Scraping Incomplete")
+            # After scraping one hashtag, wait for 1 minute
+            print(f"Finished scraping for hashtag: {hashtag}")
+            print("Waiting for 1 minute before processing the next hashtag...")
+            sleep(60)
 
-        if not no_tweets_limit:
-            print("Tweets: {} out of {}\n".format(len(self.data), self.max_tweets))
+        # After all hashtags are processed
+        print("Finished scraping all hashtags")
 
         pass
 

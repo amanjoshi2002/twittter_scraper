@@ -1,0 +1,51 @@
+[
+    {
+      "id": "1234567893",
+      "user": {
+        "id": "user101",
+        "username": "alicejohnson",
+        "display_name": "Alice Johnson"
+      },
+      "text": "New tweet for the second file",
+      "timestamp": "2023-05-01T14:00:00Z",
+      "likes": 20,
+      "retweets": 7
+    },
+    {
+      "id": "1234567891",
+      "user": {
+        "id": "user456",
+        "username": "janedoe",
+        "display_name": "Jane Doe"
+      },
+      "text": "Another sample tweet for testing",
+      "timestamp": "2023-05-01T12:30:00Z",
+      "likes": 15,
+      "retweets": 3
+    },
+    {
+      "id": "1234567894",
+      "user": {
+        "id": "user202",
+        "username": "charliebravo",
+        "display_name": "Charlie Bravo"
+      },
+      "text": "Last tweet in the second file #lasttweet",
+      "timestamp": "2023-05-01T15:00:00Z",
+      "likes": 5,
+      "retweets": 1
+    },
+
+    {
+        "id": "1234567892",
+        "user": {
+          "id": "user789",
+          "username": "bobsmith",
+          "display_name": "Bob Smith"
+        },
+        "text": "Testing the data collector #test",
+        "timestamp": "2023-05-01T13:00:00Z",
+        "likes": 8,
+        "retweets": 2
+      }
+  ]
