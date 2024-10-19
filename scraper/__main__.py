@@ -149,9 +149,7 @@ def main():
                 try:
                     scraper.scrape_tweets(
                         max_tweets=args.tweets,
-                        no_tweets_limit=args.no_tweets_limit
-                        if args.no_tweets_limit is not None
-                        else True,
+                        no_tweets_limit=args.no_tweets_limit if args.no_tweets_limit is not None else True,
                         scrape_username=args.username,
                         scrape_hashtag=args.hashtag,
                         scrape_query=args.query,

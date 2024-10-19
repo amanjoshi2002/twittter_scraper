@@ -531,8 +531,9 @@ It may be due to the following:
             if not no_tweets_limit:
                 print("Tweets: {} out of {}\n".format(len(self.data), self.max_tweets))
 
-            # After scraping one hashtag, wait for 1 minute
+            # After scraping one hashtag, save to JSON and wait for 1 minute
             print(f"Finished scraping for hashtag: {hashtag}")
+            self.save_to_json()  # Add this line to save after each hashtag
             print("Waiting for 1 minute before processing the next hashtag...")
             sleep(60)
 
@@ -541,48 +542,139 @@ It may be due to the following:
 
         pass
 
-    def save_to_csv(self):
-        print("Saving Tweets to CSV...")
+    def save_to_json(self):
+        print("Starting save_to_json method...")
         now = datetime.now()
-        folder_path = "./tweets/"
+        
+        # Create a 'tweets' folder in the same directory as the script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        folder_path = os.path.join(script_dir, '..', '..', 'tweets')
 
+        print(f"Script directory: {script_dir}")
+        print(f"Attempting to save to folder: {folder_path}")
+
+        # Create the folder if it doesn't exist
         if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
-            print("Created Folder: {}".format(folder_path))
+            try:
+                os.makedirs(folder_path)
+                print(f"Created Folder: {folder_path}")
+            except Exception as e:
+                print(f"Error creating folder: {e}")
+                return
 
-        data = {
-            "Name": [tweet[0] for tweet in self.data],
-            "Handle": [tweet[1] for tweet in self.data],
-            "Timestamp": [tweet[2] for tweet in self.data],
-            "Verified": [tweet[3] for tweet in self.data],
-            "Content": [tweet[4] for tweet in self.data],
-            "Comments": [tweet[5] for tweet in self.data],
-            "Retweets": [tweet[6] for tweet in self.data],
-            "Likes": [tweet[7] for tweet in self.data],
-            "Analytics": [tweet[8] for tweet in self.data],
-            "Tags": [tweet[9] for tweet in self.data],
-            "Mentions": [tweet[10] for tweet in self.data],
-            "Emojis": [tweet[11] for tweet in self.data],
-            "Profile Image": [tweet[12] for tweet in self.data],
-            "Tweet Link": [tweet[13] for tweet in self.data],
-            "Tweet ID": [f"tweet_id:{tweet[14]}" for tweet in self.data],
-        }
+        json_data = []
+        print(f"Number of tweets to save: {len(self.data)}")
 
-        if self.scraper_details["poster_details"]:
-            data["Tweeter ID"] = [f"user_id:{tweet[15]}" for tweet in self.data]
-            data["Following"] = [tweet[16] for tweet in self.data]
-            data["Followers"] = [tweet[17] for tweet in self.data]
+        for i, tweet in enumerate(self.data):
+            try:
+                tweet_dict = {
+                    "Name": tweet[0],
+                    "Handle": tweet[1],
+                    "Timestamp": tweet[2],
+                    "Verified": tweet[3],
+                    "Content": tweet[4],
+                    "Comments": tweet[5],
+                    "Retweets": tweet[6],
+                    "Likes": tweet[7],
+                    "Analytics": tweet[8],
+                    "Tags": tweet[9],
+                    "Mentions": tweet[10],
+                    "Emojis": tweet[11],
+                    "Profile Image": tweet[12],
+                    "Tweet Link": tweet[13],
+                    "Tweet ID": f"tweet_id:{tweet[14]}"
+                }
 
-        df = pd.DataFrame(data)
+                if self.scraper_details["poster_details"]:
+                    tweet_dict["Tweeter ID"] = f"user_id:{tweet[15]}"
+                    tweet_dict["Following"] = tweet[16]
+                    tweet_dict["Followers"] = tweet[17]
+
+                json_data.append(tweet_dict)
+            except Exception as e:
+                print(f"Error processing tweet {i}: {e}")
 
         current_time = now.strftime("%Y-%m-%d_%H-%M-%S")
-        file_path = f"{folder_path}{current_time}_tweets_1-{len(self.data)}.csv"
-        pd.set_option("display.max_colwidth", None)
-        df.to_csv(file_path, index=False, encoding="utf-8")
+        file_name = f"{current_time}_tweets_1-{len(self.data)}.json"
+        file_path = os.path.join(folder_path, file_name)
 
-        print("CSV Saved: {}".format(file_path))
+        print(f"Attempting to save file: {file_path}")
 
-        pass
+        try:
+            with open(file_path, 'w', encoding='utf-8') as json_file:
+                json.dump(json_data, json_file, ensure_ascii=False, indent=2)
+            print(f"JSON Saved successfully: {file_path}")
+        except Exception as e:
+            print(f"Error saving JSON file: {e}")
+
+        print("save_to_json method completed.")
 
     def get_tweets(self):
         return self.data
+
+    def save_to_json(self):
+        print("Starting save_to_json method...")
+        now = datetime.now()
+        
+        # Create a 'tweets' folder in the same directory as the script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        folder_path = os.path.join(script_dir, '..', '..', 'tweets')
+
+        print(f"Script directory: {script_dir}")
+        print(f"Attempting to save to folder: {folder_path}")
+
+        # Create the folder if it doesn't exist
+        if not os.path.exists(folder_path):
+            try:
+                os.makedirs(folder_path)
+                print(f"Created Folder: {folder_path}")
+            except Exception as e:
+                print(f"Error creating folder: {e}")
+                return
+
+        json_data = []
+        print(f"Number of tweets to save: {len(self.data)}")
+
+        for i, tweet in enumerate(self.data):
+            try:
+                tweet_dict = {
+                    "Name": tweet[0],
+                    "Handle": tweet[1],
+                    "Timestamp": tweet[2],
+                    "Verified": tweet[3],
+                    "Content": tweet[4],
+                    "Comments": tweet[5],
+                    "Retweets": tweet[6],
+                    "Likes": tweet[7],
+                    "Analytics": tweet[8],
+                    "Tags": tweet[9],
+                    "Mentions": tweet[10],
+                    "Emojis": tweet[11],
+                    "Profile Image": tweet[12],
+                    "Tweet Link": tweet[13],
+                    "Tweet ID": f"tweet_id:{tweet[14]}"
+                }
+
+                if self.scraper_details["poster_details"]:
+                    tweet_dict["Tweeter ID"] = f"user_id:{tweet[15]}"
+                    tweet_dict["Following"] = tweet[16]
+                    tweet_dict["Followers"] = tweet[17]
+
+                json_data.append(tweet_dict)
+            except Exception as e:
+                print(f"Error processing tweet {i}: {e}")
+
+        current_time = now.strftime("%Y-%m-%d_%H-%M-%S")
+        file_name = f"{current_time}_tweets_1-{len(self.data)}.json"
+        file_path = os.path.join(folder_path, file_name)
+
+        print(f"Attempting to save file: {file_path}")
+
+        try:
+            with open(file_path, 'w', encoding='utf-8') as json_file:
+                json.dump(json_data, json_file, ensure_ascii=False, indent=2)
+            print(f"JSON Saved successfully: {file_path}")
+        except Exception as e:
+            print(f"Error saving JSON file: {e}")
+
+        print("save_to_json method completed.")
